@@ -1,0 +1,13 @@
+name: envFEM
+channels:
+  - conda-forge
+  - anaconda
+  - defaults
+dependencies:
+  - dash
+  - flask
+  - numpy
+  - pandas
+  - uwsgi
+  - openpyxl
+
