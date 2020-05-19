@@ -4,6 +4,7 @@ import sys
 import numpy as np 
 import pandas as pd 
 
+
 class FiniteElementQ8(object):
     '''
     class to implement Q8 finite element behavior
@@ -63,4 +64,24 @@ class FiniteElementQ8(object):
     
 
 if __name__ == '__main__':
-    pass
+    
+    #sys.path.insert(0, '../')
+    from data_loader import MeshDataLoader
+
+    filepath = './datasets/mesh_data.xlsx'
+    sheet = 'homogenized_localization'
+    data_loader = MeshDataLoader(filepath, sheet)
+    df_nodes = data_loader.get_node_data('C10', 'D157')
+    df_elements = data_loader.get_element_data('B159', 'I197')
+
+    tmp_el = df_elements.sample(1)
+    elem_id = tmp_el.elem_id.values[0]
+    print('element id = {}'.format(elem_id))
+    node_ids = tmp_el.iloc[0, 1:].values.tolist()
+    print(node_ids)
+
+    tmp_elq8 = FiniteElementQ8(elem_id, node_ids,df_nodes)
+    print(tmp_elq8)
+    print(tmp_elq8.node_coords)
+
+
