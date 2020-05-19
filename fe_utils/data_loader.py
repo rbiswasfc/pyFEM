@@ -108,9 +108,13 @@ class MeshDataLoader(object):
       df_elements = pd.DataFrame(elements)
       assert df_elements.shape[1] == 8, "Only Q8 element is supported as of now"
 
-      df_elements.columns = ['n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8']
+      node_cols = ['n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8']
+      df_elements.columns = node_cols
       df_elements = df_elements.reset_index()
       df_elements['elem_id'] = df_elements['index'] 
+      for col in node_cols:
+        # decrease by 1 to reflect node numbering starts from zero
+        df_elements[col] = df_elements[col]-1 
       df_elements = df_elements[['elem_id', 'n1', 'n2',
                                   'n3', 'n4', 'n5', 'n6', 'n7', 'n8']].copy()
       df_elements = df_elements.astype(int)

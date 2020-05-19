@@ -67,6 +67,50 @@ def lagrange_basis(elem_type, query_point, dim = 2):
         raise NotImplementedError
 
     return shape_fns, derivatives
+##
+def gauss_quadrature(order, dim =2):
+    """
+    function to provide integration points and associated weights for
+    performing gauss quadrature
+
+    @params:
+    order -> Int:
+        order of gauss quadrature
+    dim -> Int:
+        dimension of analysis domain
+    
+    @returns:
+    points -> np.ndarray:
+        an array with gauss point (natural) coordinates 
+    weights -> List:
+        weights associated with each gauss point
+    """
+
+    if dim != 2:
+        raise NotImplementedError
+
+    pts, wts = [], []
+    
+    if order == 1:
+        pts.extend([0.0])
+        wts.extend([2.0])
+    elif order == 2:
+        pts.extend([0.577350269189626, -0.577350269189626])
+        wts.extend([1.0, 1.0])
+    elif order == 3:
+        pts.extend([0.774596669241483, -0.774596669241483, 0.0])
+        wts.extend([0.555555555555556, 0.555555555555556, 0.888888888888889])
+    else:
+        raise NotImplementedError
+
+    points, weights = [], []
+
+    for i in range(order):
+        for j in range(order):
+            points.append([pts[i], pts[j]])
+            weights.append(wts[i]* wts[j])
+    points = np.array(points)
+    return points, weights
 
 if __name__ == '__main__':
     query_point = [-0.25, -0.25]
@@ -75,3 +119,9 @@ if __name__ == '__main__':
                                                         query_point[1]))
     print(shape_fns)
     assert np.sum(shape_fns, axis=0) == 1.0, "shape functions should add up to unity"
+
+    points, weights = gauss_quadrature(2)
+    print('gauss points: ')
+    print(points)
+    print('associated weights: ')
+    print(weights)
