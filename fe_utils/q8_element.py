@@ -218,6 +218,9 @@ class FiniteElementQ8(object):
         return BM
 
     def compute_response(self, strain):
+        """
+        computes element stiffness matrix and nodal force vector
+        """
         
         assert strain.shape == (4,4), "shape mismatch for strain"
         

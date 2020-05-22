@@ -19,6 +19,9 @@ class Node(object):
         org_coords -> List:
             original coordinates of this node
         """
+        self.node_id = node_id
+        dof_id = [node_id*2, node_id*2+1]
+        self.dof_id = list(map(int, dof_id))
         assert len(org_coords) == 2, "only 2-D analysis supported"
         self.org_coords = org_coords
         self.disp = [0.0, 0.0]
