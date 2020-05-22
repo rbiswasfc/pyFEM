@@ -4,7 +4,7 @@ sys.path.insert(0, '../')
 
 import numpy as np 
 import pandas as pd 
-
+from copy import deepcopy
 from element_utils import lagrange_basis, gauss_quadrature
 
 
@@ -214,5 +214,9 @@ if __name__ == '__main__':
     strain = np.matmul(el.BM_G[:,:,0], dof_u)
     print("strain at GP 1: ")
     print(strain)
+    el_2 = deepcopy(el) 
+    x = (id(el) == id(el_2))
+    print(x)
+
 
 
