@@ -11,4 +11,5 @@ dependencies:
   - uwsgi
   - openpyxl
   - matplotlib
+  - scipy
 

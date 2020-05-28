@@ -153,6 +153,14 @@ class FiniteElementQ8(object):
         initialize nodal displacements with zero
         """
         self.disp_u0 = np.zeros(shape = (16,1))
+    def update_node_disp(self, du):
+        assert du.shape == (16,1)
+        self.disp_u = self.disp_u + du
+    
+    def update_last_converged_node_disp(self, disp):
+        assert disp.shape == (16,1)
+        self.disp_u0 = disp
+
 
     def update_stress(self, stress):
         assert stress.shape == (4,self.ngp), "stress shape mismatch"

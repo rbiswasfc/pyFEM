@@ -61,6 +61,7 @@ class MeshDataLoader(object):
         return data_rows
 
     def get_node_data(self, start, end):
+      
       '''
       Function to read in node data for analysis
       Note: In Abaqus generated input files node numbering starts from 1
@@ -77,6 +78,7 @@ class MeshDataLoader(object):
       df_nodes -> pd.DataFrame:
         dataframe containing node data with columns node_id, coord1 and coord2
       '''
+      
       nodes = self._read_data(start, end)
       df_nodes = pd.DataFrame(nodes)
       assert df_nodes.shape[1] == 2, "Only 2-D is supported"

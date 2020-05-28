@@ -66,12 +66,12 @@ class Domain(object):
         
 
 
-    def set_disp_field(self, cur_disp):
-        assert cur_disp.shape == (self.n_dofs, 1)
-        self.disp = cur_disp
+    def update_disp_field(self, du):
+        assert du.shape == (self.n_dofs, 1)
+        self.disp += du
     
-    def set_last_converged_disp_field(self):
-        self.disp0 = self.disp 
+    def set_last_converged_disp_field(self, disp):
+        self.disp0 = disp
 
     def update_nodes(self):
         """
