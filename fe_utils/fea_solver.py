@@ -49,7 +49,13 @@ class FESolver(object):
         self.initialize_field_variables()
 
         self.strK = None # structural K matrix
-        self.strF = None # global nodal force vector
+        self.intF = None # internal nodal force vector
+
+        self.netK = None
+        self.netF = None
+
+        self.fixed_dofs = None
+        self.prescribed_dofs = None
 
     def configure_updated_state(self):
         
@@ -89,7 +95,9 @@ class FESolver(object):
         return du_star
     
     def solve_du(self):
-        pass
+        invK = np.linalg.inv(self.netK)
+        du = np.matmul(invK, self.netF)
+        return du
         
     
     def loop_over_elements(self):
@@ -98,8 +106,12 @@ class FESolver(object):
         if self.iteration == 0:
             self.du = self.get_initial_du_estimate()
         else:
-            self.du = self.get_du_estimate()
+            self.du = self.solve_du()
+        # update domain 
+        self.updated_state.update_disp_field(self.du)
+        self.updated_state.update_nodes()
         
+
         for iel in range(self.num_elem):
             this_element = self.updated_state.elements[iel]
             du_elem = self.du[this_element.global_dof_ids].flatten()
@@ -109,6 +121,7 @@ class FESolver(object):
             
             self.KC[iel] = K_elem
             self.fintC[iel] = fint_elem
+            self.fluxC[iel] = np.sum(np.absolute(fint_elem[:,0]))
 
             this_element.update_node_disp(du_elem)
             this_element.update_stress(stress)
@@ -174,10 +187,114 @@ class FESolver(object):
         return fint
 
     def impose_bc(self):
-        pass
+        """
+        imposes boundary conditions
+        """
+        bc_fixed = self.bc["bc_fixed"]
+        bc_prescribed = self.bc["bc_prescribed"]
+
+        fixed_dofs = []
+        prescribed_dofs = []
+        
+        for boundary, axis in bc_fixed:
+            dofs = self.base_state.get_boundary_dofs(boundary, axis)
+            fixed_dofs.extend(dofs)
+
+        for boundary, axis in bc_prescribed:
+            dofs = self.base_state.get_boundary_dofs(boundary, axis)
+            prescribed_dofs.extend(dofs)
+        
+        self.fixed_dofs = fixed_dofs
+        self.prescribed_dofs = prescribed_dofs
+
+        netK = self.strK.copy()
+        netF = -self.intF.copy()
+
+        bcwt = 1.0
+
+        for dof in fixed_dofs:
+            netK[dof,:] = 0
+            netK[:,dof] = 0
+            netK[dof, dof] = bcwt
+        
+        for dof in prescribed_dofs:
+            netK[dof,:] = 0
+            netK[:,dof] = 0
+            netK[dof, dof] = bcwt 
+
+        # External force vector due to specified boundary conditions        
+        if ((self.step ==0) & (self.iteration == 0)):
+            mm = np.zeros(shape = (self.num_dof,1))
+            for dof in prescribed_dofs:
+              mm[dof,0] = self.ubar[self.step]
+            # force due to known displacements
+            fm = -np.matmul(self.strK, mm)
+            #print('shape of fm:')
+            #print(fm.shape)        
+            netF = netF + fm
+
+        for dof in fixed_dofs:
+            netF[dof,0] = 0
+
+        if self.iteration == 0:
+            if (self.step == 0):
+              for dof in prescribed_dofs:
+                    netF[dof] = self.ubar[self.step]
+            else:
+              for dof in prescribed_dofs:
+                    netF[dof] = 0 # already added towards total displacement
+        else:
+            for dof in prescribed_dofs:
+                netF[dof] = 0
+
+        return netK, netF
 
     def check_convergence(self):
-        pass
+        
+        """
+        check for convergence
+        """
+        
+        Rf = -self.intF.copy()
+
+
+        for dof in self.fixed_dofs:
+            Rf[dof] = 0
+
+        for dof in self.prescribed_dofs:
+            Rf[dof] = 0
+        
+        ave_flux = 0.0
+        for iel in range(self.num_elem):
+            ave_flux = ave_flux + self.fluxC[iel]
+        ave_flux = ave_flux/(self.num_elem*16.0)
+        
+        absRf = np.absolute(Rf)
+        max_Rf, max_Rf_idx = absRf.max(), absRf.argmax()
+        
+        # Relative error in flux
+        self.err_flux = max_Rf/(1e-8+ave_flux) # add a small number to avoid 0/0
+
+        # Compute maximum increment in displacement in the step
+        du0 = self.updated_state.disp_delta
+        max_du0 = np.absolute(du0).max()
+        
+        # current iteration
+        max_du = np.absolute(self.du).max()
+        # Relative error in displacement
+        self.err_disp = max_du/max_du0
+        
+        if(self.iteration == 0) & (self.step == 0):
+            self.err_disp = 1
+
+        print('Average Flux in step {} iteration {} = {:.4f}'.format(self.step, 
+                            self.iteration, ave_flux))
+        print('Largest Residual Flux = {:.4f} at node {} dof {}'.format(max_Rf, 
+                int(round(max_Rf_idx/2)), max_Rf_idx%2+1))
+        print('Relative Error in Flux in step {} iteration {} = {:.4f}'.format(self.step, 
+            self.iteration, self.err_flux))
+        print('Relative Error in Disp in step {} iteration {} = {:.4f}'.format(self.step, 
+        self.iteration, self.err_disp))
 
     def update_domain(self):
         """
@@ -188,14 +305,18 @@ class FESolver(object):
     
     def execute(self):
 
-        while ((self.err_flux > tol_flux)| (self.err_disp > tol_disp)):
+        while ((self.err_flux > self.tol_flux)| (self.err_disp > self.tol_disp)):
             if self.check_max_iter():
                 print('Error: no convergence after {} iterations'.format(self.max_iter))
                 raise RuntimeError
             self.loop_over_elements()
             self.strK = self.get_global_stiffness_matrix()
-            self.strF = self.get_global_force_vector()
-            self.impose_bc()
+            self.intF = self.get_global_force_vector()
+            self.netK, self.netF = self.impose_bc()
+            self.check_convergence()
+            self.iteration += 1
+
+
 
     
     def check_max_iter(self):
@@ -239,4 +360,5 @@ if __name__ == "__main__":
     # boundary conditions
     bc = {"bc_fixed": [('left', 'x'), ('top', 'y')], 
           "bc_prescribed" : [('right', 'x')]}
-    fe_solver = FESolver(0, domain, bc, [0.1, 0.1])
+    fe_solver = FESolver(0, domain, bc, [0.012, 0.012])
+    fe_solver.execute()
